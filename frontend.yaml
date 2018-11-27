@@ -1,0 +1,61 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ngbook
+  annotations:
+    # Note that the backend talks over HTTP.
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+    # TODO: Fill in with the ARN of your certificate.
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:ap-southeast-1:129703977775:certificate/06a29e59-576f-45ae-936f-d467939be96b
+    # Only run SSL on the port named "https" below.
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+  labels:
+    app: ngbook
+spec:
+  selector:
+    app: ngbook
+  ports:
+  - protocol: TCP
+    port: 80
+    name: http
+    targetPort: 80
+  - protocol: TCP
+    port: 443
+    name: https
+    targetPort: 80
+  type: LoadBalancer
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: ngbook
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ngbook
+    spec:
+      containers:
+      - name: ngbook
+        image: truonghongphuoc/ngbook:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 400m
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ngbook-autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: ngbook
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
